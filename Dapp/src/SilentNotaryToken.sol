@@ -19,7 +19,7 @@ contract SilentNotaryToken is SafeMath, ERC20, Killable {
   string constant public symbol = "SNTR";
   uint constant public decimals = 4;
   /// Buyout price
-  uint constant public buyOutPrice = 20e10;
+  uint constant public BUYOUT_PRICE = 20e10;
   /// Holder list
   address[] public holders;
   /// Balance data
@@ -179,10 +179,10 @@ contract SilentNotaryToken is SafeMath, ERC20, Killable {
   function buyout(address _holder, uint _amount) onlyOwner addIfNotExist(msg.sender) external  {
     require(_holder != msg.sender);
     require(this.balance >= _amount);
-    require(buyOutPrice <= _amount);
+    require(BUYOUT_PRICE <= _amount);
 
     uint multiplier = 10 ** decimals;
-    uint buyoutTokens = safeDiv(safeMul(_amount, multiplier), buyOutPrice);
+    uint buyoutTokens = safeDiv(safeMul(_amount, multiplier), BUYOUT_PRICE);
 
     balances[msg.sender].value = safeAdd(balances[msg.sender].value, buyoutTokens);
     balances[_holder].value = safeSub(balances[_holder].value, buyoutTokens);
