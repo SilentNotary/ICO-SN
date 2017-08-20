@@ -19,7 +19,7 @@ contract SilentNotaryToken is SafeMath, ERC20, Killable {
   string constant public symbol = "SNTR";
   uint constant public decimals = 4;
   /// Buyout price
-  uint constant public buyOutPrice = 200 finney;
+  uint constant public buyOutPrice = 20e10;
   /// Holder list
   address[] public holders;
   /// Balance data
