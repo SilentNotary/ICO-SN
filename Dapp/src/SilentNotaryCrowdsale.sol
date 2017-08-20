@@ -1,4 +1,4 @@
-pragma solidity ^0.4.13;
+pragma solidity ^0.4.14;
 
 import '/src/common/SafeMath.sol';
 import '/src/common/lifecycle/Haltable.sol';
@@ -17,8 +17,11 @@ Thanks for the help.
  /// @title SilentNotary  сrowdsale contract
 contract SilentNotaryCrowdsale is Haltable, Killable, SafeMath {
 
+  /// Period of the ICO stage
+  uint constant public DURATION = 14 days;
+
   /// The duration of ICO
-  uint public constant ICO_DURATION = 14 days;
+  uint public icoDuration = DURATION;
 
   //// The token we are selling
   SilentNotaryToken public token;
@@ -54,28 +57,25 @@ contract SilentNotaryCrowdsale is Haltable, Killable, SafeMath {
   mapping (address => uint256) public tokenAmountOf;
 
   /// if the funding goal is not reached, investors may withdraw their funds
-  uint public constant FUNDING_GOAL = 20 ether;
+  uint public constant FUNDING_GOAL = 1000 ether;
 
-  /// topup team wallet on 5(testing) Eth after that will topup both - team and multisig wallet by 32% and 68%
-  uint constant MULTISIG_WALLET_GOAL = 5 ether;
+  /// topup team wallet after that will topup both - team and multisig wallet by 32% and 68%
+  uint constant MULTISIG_WALLET_GOAL = FUNDING_GOAL;
 
-  /// Minimum order quantity 0.1 ether
-  uint public constant MIN_INVESTEMENT = 100 finney;
+  /// Minimum order quantity
+  uint public constant MIN_INVESTEMENT = 10e10;
 
   /// ICO start token price
-  uint public constant MIN_PRICE = 100 finney;
+  uint public constant MIN_PRICE = 10e10;
 
   /// Maximum token price, if reached ICO will stop
-  uint public constant MAX_PRICE = 200 finney;
+  uint public constant MAX_PRICE = 20e10;
 
   /// How much ICO tokens to sold
-  uint public constant INVESTOR_TOKENS  = 9e4;
-
-  /// How much ICO tokens will get team
-  uint public constant TEAM_TOKENS = 1e4;
+  uint public constant INVESTOR_TOKENS  = 10e12;
 
   /// Tokens count involved in price calculation
-  uint public constant TOTAL_TOKENS_FOR_PRICE = INVESTOR_TOKENS + TEAM_TOKENS;
+  uint public constant TOTAL_TOKENS_FOR_PRICE = INVESTOR_TOKENS;
 
   /// last token price
   uint public tokenPrice = MIN_PRICE;
@@ -153,11 +153,6 @@ contract SilentNotaryCrowdsale is Haltable, Killable, SafeMath {
     PriceChanged(tokenPrice, newPrice);
     tokenPrice = newPrice;
 
-    // Check that we did not bust the cap
-    //if(isBreakingCap(weiAmount, tokenAmount, weiRaised, tokensSold)) {
-    //  revert();
-    //}
-
     assignTokens(receiver, tokenAmount);
     if(weiRaised <= MULTISIG_WALLET_GOAL)
       multisigWallet.transfer(weiAmount);
@@ -201,7 +196,7 @@ contract SilentNotaryCrowdsale is Haltable, Killable, SafeMath {
   /// @dev Finalize a succcesful crowdsale.
   function finalizeCrowdsale() internal {
     var multiplier = 10 ** token.decimals();
-    assignTokens(owner, safeMul(safeAdd(safeSub(INVESTOR_TOKENS, tokensSold), TEAM_TOKENS), multiplier));
+    assignTokens(owner, safeSub(safeMul(INVESTOR_TOKENS, multiplier), tokensSold));
     token.releaseTokenTransfer();
   }
 
@@ -231,13 +226,19 @@ contract SilentNotaryCrowdsale is Haltable, Killable, SafeMath {
       return State.Finalized;
     if (address(token) == 0 || address(multisigWallet) == 0)
       return State.Preparing;
-    if (now >= startsAt && now < startsAt + ICO_DURATION && !isCrowdsaleFull())
+    if (now >= startsAt && now < startsAt + icoDuration && !isCrowdsaleFull())
       return State.Funding;
     if (isMinimumGoalReached())
         return State.Success;
     if (!isMinimumGoalReached() && weiRaised > 0 && loadedRefund >= weiRaised)
       return State.Refunding;
     return State.Failure;
+  }
+
+  /// @dev Prolongate ICO if owner decide it
+  function prolongate() public onlyOwner {
+    require(icoDuration < DURATION * 2);
+    icoDuration += DURATION;
   }
 
   /// @dev Calculating price, it is not linear function
@@ -272,7 +273,7 @@ contract SilentNotaryCrowdsale is Haltable, Killable, SafeMath {
    function isCrowdsaleFull() public constant returns (bool) {
      return tokenPrice >= MAX_PRICE
        || tokensSold >= safeMul(TOTAL_TOKENS_FOR_PRICE,  10 ** token.decimals())
-       || now > startsAt + ICO_DURATION;
+       || now > startsAt + icoDuration;
    }
 
     /// @dev Dynamically create tokens and assign them to the investor.
