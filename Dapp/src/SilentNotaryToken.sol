@@ -1,4 +1,4 @@
-pragma solidity ^0.4.13;
+pragma solidity ^0.4.14;
 
 import '/src/common/lifecycle/Killable.sol';
 import '/src/common/token/ERC20.sol';
@@ -18,13 +18,10 @@ contract SilentNotaryToken is SafeMath, ERC20, Killable {
   string constant public name = "Silent Notary Token";
   string constant public symbol = "SNTR";
   uint constant public decimals = 4;
-
-  /// Minimum amount for starting buyout logic in wei
-  uint public minBuyOutAmount = 0;
   /// Buyout price
   uint constant public buyOutPrice = 200 finney;
   /// Holder list
-  address[] holders;
+  address[] public holders;
   /// Balance data
   struct Balance {
     /// Tokens amount
@@ -33,7 +30,7 @@ contract SilentNotaryToken is SafeMath, ERC20, Killable {
     bool exist;
   }
   /// Holder balances
-  mapping(address => Balance) balances;
+  mapping(address => Balance) public balances;
   /// Contract that is allowed to create new tokens and allows unlift the transfer limits on this token
   address public crowdsaleAgent;
   /// A crowdsale contract can release us to the wild if ICO success. If false we are are in transfer lock up period.
@@ -91,13 +88,12 @@ contract SilentNotaryToken is SafeMath, ERC20, Killable {
 
   /// @dev Constructor
   function SilentNotaryToken() {
-    owner = msg.sender;
   }
 
-  /// Fallback method will buyout tokens
+  /// Fallback method
   function() payable {
     require(msg.value > 0);
-    buyout();
+    Deposit(msg.sender, msg.value);
   }
   /// @dev Create new tokens and allocate them to an address. Only callably by a crowdsale contract
   /// @param receiver Address of receiver
@@ -108,11 +104,7 @@ contract SilentNotaryToken is SafeMath, ERC20, Killable {
       balances[receiver].exist = true;
       Transfer(0, receiver, amount);
   }
-  /// @dev Set minimum limit for starting buyout logic
-  /// @param _minBuyOutAmount min buyout amount
-  function setBuyoutMinAmount(uint _minBuyOutAmount) onlyOwner public {
-    minBuyOutAmount = _minBuyOutAmount;
-  }
+
   /// @dev Set the contract that can call release and make the token transferable.
   /// @param _crowdsaleAgent crowdsale contract address
   function setCrowdsaleAgent(address _crowdsaleAgent) onlyOwner inReleaseState(false) public {
@@ -181,43 +173,24 @@ contract SilentNotaryToken is SafeMath, ERC20, Killable {
     return allowed[_owner][_spender];
   }
 
-  /// @dev Internal burn
+  /// @dev buyout method
   /// @param _holder holder address
-  /// @param _amount burn amount
-  function burn(address _holder, uint _amount) internal  {
-      address burner = msg.sender;
-      balances[_holder].value = safeSub(balances[_holder].value, _amount);
-      totalSupply = safeSub(totalSupply, _amount);
-      Burned(burner, _holder, _amount);
-      /// Keep exchanges happy by sending the burned amount to
-      /// "burn address"
-      Transfer(burner, 0x0, _amount);
-  }
-
-  /// @dev Internal buyout method
-  function buyout() internal  {
-    Deposit(msg.sender, msg.value);
-    uint balance = safeAdd(this.balance, msg.value);
-
-    /// if amount less than min limit will store ether in contract
-    if(balance < minBuyOutAmount)
-        return;
+  /// @param _amount wei for buyout tokens
+  function buyout(address _holder, uint _amount) onlyOwner addIfNotExist(msg.sender) external  {
+    require(_holder != msg.sender);
+    require(this.balance >= _amount);
+    require(buyOutPrice <= _amount);
 
     uint multiplier = 10 ** decimals;
-    uint totalSupplyInt = safeDiv(totalSupply, multiplier);
+    uint buyoutTokens = safeDiv(safeMul(_amount, multiplier), buyOutPrice);
 
-    for (uint i = 0; i < holders.length; i++) {
-      var holder = holders[i];
+    balances[msg.sender].value = safeAdd(balances[msg.sender].value, buyoutTokens);
+    balances[_holder].value = safeSub(balances[_holder].value, buyoutTokens);
+    balances[msg.sender].exist = true;
 
-      uint tokenPortion = safeDiv(balances[holder].value, totalSupplyInt);
-      uint weiPortion = safeDiv(safeMul(tokenPortion, balance), multiplier);
+    Transfer(_holder, msg.sender, buyoutTokens);
 
-      if(weiPortion > 0 && weiPortion >= buyOutPrice) {
-        uint buyoutTokens = safeDiv(safeMul(weiPortion, multiplier), buyOutPrice);
-        burn(holder, buyoutTokens);
-        holder.transfer(weiPortion);
-        Pay(holder, weiPortion);
-      }
-    }
+    _holder.transfer(_amount);
+    Pay(_holder, _amount);
   }
 }
