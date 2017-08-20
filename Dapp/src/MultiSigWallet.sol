@@ -1,4 +1,4 @@
-pragma solidity 0.4.13;
+pragma solidity 0.4.14;
 
 /*
 This code is in the testing stage and may contain certain bugs.
