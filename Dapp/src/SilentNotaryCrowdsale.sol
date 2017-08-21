@@ -196,7 +196,9 @@ contract SilentNotaryCrowdsale is Haltable, Killable, SafeMath {
   /// @dev Finalize a succcesful crowdsale.
   function finalizeCrowdsale() internal {
     var multiplier = 10 ** token.decimals();
-    assignTokens(owner, safeSub(safeMul(INVESTOR_TOKENS, multiplier), tokensSold));
+    uint investorTokens = safeMul(INVESTOR_TOKENS, multiplier);
+    if(investorTokens > tokensSold)
+      assignTokens(owner, safeSub(investorTokens, tokensSold));
     token.releaseTokenTransfer();
   }
 
