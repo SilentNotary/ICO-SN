@@ -26,8 +26,11 @@ contract SilentNotaryCrowdsale is Haltable, Killable, SafeMath {
   //// The token we are selling
   SilentNotaryToken public token;
 
-  /// Multisig wallet
+  /// Escrow wallet
   address public multisigWallet;
+
+  /// Team wallet
+  address public teamWallet;
 
   /// The UNIX timestamp start date of the crowdsale
   uint public startsAt;
@@ -62,17 +65,17 @@ contract SilentNotaryCrowdsale is Haltable, Killable, SafeMath {
   /// topup team wallet after that will topup both - team and multisig wallet by 32% and 68%
   uint constant MULTISIG_WALLET_GOAL = FUNDING_GOAL;
 
-  /// Minimum order quantity
-  uint public constant MIN_INVESTEMENT = 10e10;
+  /// Minimum order quantity 0.1 ether
+  uint public constant MIN_INVESTEMENT = 100 finney;
 
   /// ICO start token price
-  uint public constant MIN_PRICE = 10e10;
+  uint public constant MIN_PRICE = 10e9;
 
   /// Maximum token price, if reached ICO will stop
   uint public constant MAX_PRICE = 20e10;
 
   /// How much ICO tokens to sold
-  uint public constant INVESTOR_TOKENS  = 10e12;
+  uint public constant INVESTOR_TOKENS  = 10e11;
 
   /// Tokens count involved in price calculation
   uint public constant TOTAL_TOKENS_FOR_PRICE = INVESTOR_TOKENS;
@@ -111,13 +114,15 @@ contract SilentNotaryCrowdsale is Haltable, Killable, SafeMath {
   /// @param _token SNTR token address
   /// @param _multisigWallet  multisig wallet address
   /// @param _start  ICO start time
-  function SilentNotaryCrowdsale(address _token, address _multisigWallet, uint _start) {
+  function SilentNotaryCrowdsale(address _token, address _multisigWallet, address _teamWallet, uint _start) {
     require(_token != 0);
     require(_multisigWallet != 0);
+    require(_teamWallet != 0);
     require(_start != 0);
 
     token = SilentNotaryToken(_token);
     multisigWallet = _multisigWallet;
+    teamWallet = _teamWallet;
     startsAt = _start;
   }
 
@@ -165,7 +170,7 @@ contract SilentNotaryCrowdsale is Haltable, Killable, SafeMath {
       }
 
       var distributedAmount = safeDiv(safeMul(weiAmount, 32), 100);
-      owner.transfer(distributedAmount);
+      teamWallet.transfer(distributedAmount);
       multisigWallet.transfer(safeSub(weiAmount, distributedAmount));
 
     }
@@ -198,7 +203,7 @@ contract SilentNotaryCrowdsale is Haltable, Killable, SafeMath {
     var multiplier = 10 ** token.decimals();
     uint investorTokens = safeMul(INVESTOR_TOKENS, multiplier);
     if(investorTokens > tokensSold)
-      assignTokens(owner, safeSub(investorTokens, tokensSold));
+      assignTokens(teamWallet, safeSub(investorTokens, tokensSold));
     token.releaseTokenTransfer();
   }
 
