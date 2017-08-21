@@ -254,16 +254,6 @@ contract SilentNotaryCrowdsale is Haltable, Killable, SafeMath {
     return uint(priceDifference + int(MAX_PRICE));
   }
 
-   /// @dev Called from invest() to confirm if the curret investment does not break our cap rule.
-   /// @param weiAmount tokens to buy
-   /// @param tokenAmount tokens to buy
-   /// @param weiRaisedTotal tokens to buy
-   /// @param tokensSoldTotal tokens to buy
-   /// @return limit result
-   //function isBreakingCap(uint weiAmount, uint tokenAmount, uint weiRaisedTotal, uint tokensSoldTotal) constant returns (bool limitBroken) {
-   //   return false;
-   //}
-
    /// @dev Minimum goal was reached
    /// @return true if the crowdsale has raised enough money to be a succes
    function isMinimumGoalReached() public constant returns (bool reached) {
